@@ -27,13 +27,13 @@ pip install yfinance pandas numpy matplotlib
 1. Clone this repository to your local machine:
 
    ```bash
-   git clone https://github.com/yourusername/your-repository-name.git
+   git clone https://github.com/owais-kamdar/trading-backtest.git
    ```
 
 2. Navigate to the project directory:
 
    ```bash
-   cd your-repository-name
+   cd trading-backtest
    ```
 
 3. Install the required libraries (if not already installed):
