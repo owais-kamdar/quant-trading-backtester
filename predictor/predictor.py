@@ -2,6 +2,8 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+import os
 
 def prepare_data_lstm(data, n_steps=50):
     """
@@ -20,15 +22,16 @@ def prepare_data_lstm(data, n_steps=50):
     
     return np.array(X), np.array(y), scaler
 
-def build_lstm_model(input_shape):
+def build_lstm_model(input_shape, units=50):
     """
     Builds and compiles the LSTM model.
     :param input_shape: Shape of the input data for LSTM.
+    :param units: Number of units in the LSTM layers.
     :return: Compiled LSTM model.
     """
     model = Sequential()
-    model.add(LSTM(units=50, return_sequences=True, input_shape=input_shape))
-    model.add(LSTM(units=50))
+    model.add(LSTM(units=units, return_sequences=True, input_shape=input_shape))
+    model.add(LSTM(units=units))
     model.add(Dense(1))  # Output layer for future price
     
     model.compile(optimizer='adam', loss='mean_squared_error')
@@ -47,9 +50,17 @@ def predict_future_prices(data, n_steps=50, epochs=10, batch_size=32):
     X, y, scaler = prepare_data_lstm(data, n_steps)
     X = X.reshape((X.shape[0], X.shape[1], 1))  # Reshape for LSTM
 
-    # Build and train LSTM model
     model = build_lstm_model((X.shape[1], 1))
-    model.fit(X, y, epochs=epochs, batch_size=batch_size, verbose=1)
+
+    # Save model during training
+    checkpoint_filepath = 'best_model.h5'
+    early_stopping = EarlyStopping(monitor='loss', patience=5)
+    model_checkpoint = ModelCheckpoint(filepath=checkpoint_filepath, save_best_only=True)
+
+    model.fit(X, y, epochs=epochs, batch_size=batch_size, verbose=1,
+              callbacks=[early_stopping, model_checkpoint])
+
+    model.load_weights(checkpoint_filepath)
 
     # Predict future prices (for the next 10 days as an example)
     last_data = X[-1].reshape((1, X.shape[1], 1))  # Use the last data point for prediction

@@ -1,5 +1,5 @@
-# plotter.py
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def plot_performance(data, history, buy_signals, sell_signals, future_prices=None):
     plt.figure(figsize=(14, 7))
@@ -28,5 +28,3 @@ def plot_performance(data, history, buy_signals, sell_signals, future_prices=Non
     plt.title('Backtest Performance with Future Predictions')
     plt.legend()
     plt.show()
-
-
