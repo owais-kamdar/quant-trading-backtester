@@ -2,13 +2,14 @@
 # Backtesting Quantitative Trading Strategy
 
 ## Overview
-This Python-based framework simulates and evaluates a Moving Average Crossover trading strategy using historical stock data. The framework integrates key performance metrics, including Sharpe Ratio, Max Drawdown, and Compound Annual Growth Rate (CAGR), along with realistic risk management techniques like stop-loss and transaction costs. Dynamic data visualizations display buy/sell signals, allowing users to assess strategy effectiveness over time.
+This Python-based framework simulates and evaluates a **Moving Average Crossover trading strategy** using historical stock data. The framework integrates key performance metrics such as the **Sharpe Ratio**, **Max Drawdown**, and **Compound Annual Growth Rate (CAGR)**, along with realistic risk management techniques like **stop-loss**, **take-profit**, and **transaction costs**. Dynamic data visualizations display buy/sell signals and portfolio performance over time, allowing users to assess the strategy’s effectiveness.
 
 ## Features
-- Backtests a Moving Average Crossover strategy using historical data.
-- Calculates essential performance metrics: Sharpe Ratio, Max Drawdown, and CAGR.
-- Incorporates stop-loss and transaction costs to simulate real-world risk management.
-- Provides visualizations of stock price, portfolio value, and buy/sell signals.
+- **Backtest Strategy:** Simulates a Moving Average Crossover strategy with additional indicators like RSI and Bollinger Bands.
+- **Performance Metrics:** Calculates Sharpe Ratio, Max Drawdown, and CAGR to evaluate risk-adjusted returns.
+- **Risk Management:** Incorporates stop-loss, take-profit levels, and transaction costs to reflect real-world trading conditions.
+- **Data Visualization:** Plots stock prices, portfolio value, and buy/sell signals, allowing for easy interpretation.
+- **Prediction:** Predicts future stock prices using LSTM models.
 
 ## Prerequisites
 To run this project, you need the following libraries installed:
@@ -16,11 +17,13 @@ To run this project, you need the following libraries installed:
 - `pandas`
 - `numpy`
 - `matplotlib`
+- `TA-Lib`
+- `tensorflow`
 
 You can install these libraries using `pip`:
 
 ```bash
-pip install yfinance pandas numpy matplotlib
+pip install yfinance pandas numpy matplotlib TA-Lib tensorflow
 ```
 
 ## Setup
@@ -45,7 +48,8 @@ pip install yfinance pandas numpy matplotlib
 4. Run the Python script:
 
    ```bash
-   python backtesting_strategy.py
+   python main.py
+
    ```
 
 ## Usage
