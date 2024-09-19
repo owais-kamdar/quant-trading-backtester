@@ -34,7 +34,9 @@ def calculate_cagr(initial_value, final_value, periods):
     :param initial_value: Starting value of the portfolio.
     :param final_value: Ending value of the portfolio.
     :param periods: Total time periods (in years).
-    :return: The CAGR.
+    :return: The CAGR, or 0 if periods or initial_value are invalid.
     """
+    if initial_value <= 0 or periods <= 0:
+        return 0  # Avoid division by zero or invalid CAGR
     return (final_value / initial_value) ** (1 / periods) - 1
 

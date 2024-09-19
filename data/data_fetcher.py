@@ -2,6 +2,10 @@ import yfinance as yf
 import talib
 import pandas as pd
 
+import yfinance as yf
+import talib
+import pandas as pd
+
 def get_data(stock_symbol, start, end):
     """
     Downloads historical stock data and adds technical indicators like RSI, Bollinger Bands, EMA, and MACD.
@@ -15,6 +19,7 @@ def get_data(stock_symbol, start, end):
 
     # Calculate Moving Averages
     data['50_MA'] = data['Close'].rolling(window=50).mean()
+    data['100_MA'] = data['Close'].rolling(window=100).mean()  # Added 100-day moving average
     data['200_MA'] = data['Close'].rolling(window=200).mean()
 
     # Calculate Exponential Moving Average (EMA)
@@ -25,7 +30,7 @@ def get_data(stock_symbol, start, end):
     data['RSI'] = talib.RSI(data['Close'], timeperiod=14)
 
     # Calculate Bollinger Bands
-    data['Upper_BB'], data['Middle_BB'], data['Lower_BB'] = talib.BBANDS(data['Close'], timeperiod=20, nbdevup=2, nbdevdn=2, matype=0)
+    data['BB_Upper'], data['BB_Middle'], data['BB_Lower'] = talib.BBANDS(data['Close'], timeperiod=20, nbdevup=2, nbdevdn=2, matype=0)
 
     # Calculate MACD (Moving Average Convergence Divergence)
     data['MACD'], data['MACD_Signal'], data['MACD_Hist'] = talib.MACD(data['Close'], fastperiod=12, slowperiod=26, signalperiod=9)
