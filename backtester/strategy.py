@@ -1,4 +1,9 @@
-def backtest_strategy(data, initial_balance=10000, transaction_cost=0.001, stop_loss=0.02, take_profit=0.10, leverage=1):
+# strategy.py
+
+def backtest_strategy(
+    data, initial_balance=10000, transaction_cost=0.001,
+    stop_loss=0.05, take_profit=0.15, leverage=1,
+    short_ma='Short_MA', long_ma='Long_MA', rsi_lower=20, rsi_upper=80):
     print("Backtesting the strategy...\n")
     balance = initial_balance
     shares = 0
@@ -11,25 +16,31 @@ def backtest_strategy(data, initial_balance=10000, transaction_cost=0.001, stop_
     max_portfolio_value = initial_balance
 
     for i in range(len(data)):
-        # Enhanced Buy signal: 100-day MA crosses above 200-day MA, RSI < 30 (oversold), price above lower Bollinger Band
-        if data['100_MA'].iloc[i] > data['200_MA'].iloc[i] and shares == 0 and data['RSI'].iloc[i] < 30 and data['Close'].iloc[i] < data['BB_Middle'].iloc[i]:
+        # Enhanced Buy signal
+        if (data[short_ma].iloc[i] > data[long_ma].iloc[i]
+            and shares == 0
+            and data['RSI'].iloc[i] < rsi_lower):
+
             shares = (balance // data['Close'].iloc[i]) * leverage
             balance -= shares * data['Close'].iloc[i] * (1 + transaction_cost)
             buy_price = data['Close'].iloc[i]
             buy_signals.append((data.index[i], data['Close'].iloc[i]))
             total_predictions += 1
-            
+
             # Check if the stock price increased within 5 days after the buy
             if i + 5 < len(data) and data['Close'].iloc[i + 5] > data['Close'].iloc[i]:
                 correct_predictions += 1
 
-        # Enhanced Sell signal: 100-day MA crosses below 200-day MA, RSI > 70 (overbought), price below upper Bollinger Band
-        elif data['100_MA'].iloc[i] < data['200_MA'].iloc[i] and shares > 0 and data['RSI'].iloc[i] > 70 and data['Close'].iloc[i] > data['BB_Middle'].iloc[i]:
+        # Enhanced Sell signal
+        elif (data[short_ma].iloc[i] < data[long_ma].iloc[i]
+              and shares > 0
+              and data['RSI'].iloc[i] > rsi_upper):
+
             balance += shares * data['Close'].iloc[i] * (1 - transaction_cost)
             shares = 0
             sell_signals.append((data.index[i], data['Close'].iloc[i]))
             total_predictions += 1
-            
+
             # Check if the stock price decreased within 5 days after the sell
             if i + 5 < len(data) and data['Close'].iloc[i + 5] < data['Close'].iloc[i]:
                 correct_predictions += 1

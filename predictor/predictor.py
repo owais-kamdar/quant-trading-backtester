@@ -1,80 +1,131 @@
-import numpy as np
-import tensorflow as tf
-from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+# predictor.py
 
-import os
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 def prepare_data_lstm(data, n_steps=50):
-    """
-    Prepares stock data for LSTM.
-    :param data: DataFrame with stock prices.
-    :param n_steps: Number of timesteps to look back for LSTM.
-    :return: Scaled input features (X), target prices (y), and the scaler.
-    """
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(data['Close'].values.reshape(-1, 1))
+    features = ['Close', 'Volume', 'RSI', 'MACD', 'BB_Middle']
+    data = data[features].dropna()
+
+    scaler = MinMaxScaler()
+    scaled_data = scaler.fit_transform(data)
 
     X, y = [], []
     for i in range(n_steps, len(scaled_data)):
-        X.append(scaled_data[i-n_steps:i, 0])
-        y.append(scaled_data[i, 0])
-    
-    return np.array(X), np.array(y), scaler
+        X.append(scaled_data[i - n_steps:i])
+        y.append(scaled_data[i, 0])  # Predicting 'Close' price
 
-def build_lstm_model(input_shape, units=50):
-    """
-    Builds and compiles the LSTM model.
-    :param input_shape: Shape of the input data for LSTM.
-    :param units: Number of units in the LSTM layers.
-    :return: Compiled LSTM model.
-    """
-    model = Sequential()
-    model.add(LSTM(units=units, return_sequences=True, input_shape=input_shape))
-    model.add(LSTM(units=units))
-    model.add(Dense(1))  # Output layer for future price
-    
-    model.compile(optimizer='adam', loss='mean_squared_error')
-    return model
+    X = np.array(X)
+    y = np.array(y)
+    return X, y, scaler
 
-def predict_future_prices(data, n_steps=50, epochs=10, batch_size=32):
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size=64, num_layers=3, dropout=0.2):
+        super(LSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        self.lstm = nn.LSTM(
+            input_size, hidden_size, num_layers,
+            batch_first=True, dropout=dropout)
+        self.fc = nn.Linear(hidden_size, 1)
+
+    def forward(self, x):
+        # Set initial hidden and cell states
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+
+        # Forward propagate LSTM
+        out, _ = self.lstm(x, (h0, c0))
+
+        # Decode the hidden state of the last time step
+        out = self.fc(out[:, -1, :])
+        return out
+
+def predict_future_prices(data, n_steps=50, epochs=20, batch_size=32, device='cpu'):
     """
-    Predict future stock prices using LSTM.
-    :param data: DataFrame with stock prices.
-    :param n_steps: Number of timesteps to look back for LSTM.
-    :param epochs: Number of epochs to train the model.
-    :param batch_size: Batch size for model training.
-    :return: Predicted future stock prices.
+    Predict future stock prices using PyTorch LSTM.
+    Returns predicted future prices and evaluation metrics.
     """
-    # Prepare data for LSTM
+    # Prepare data
     X, y, scaler = prepare_data_lstm(data, n_steps)
-    X = X.reshape((X.shape[0], X.shape[1], 1))  # Reshape for LSTM
+    input_size = X.shape[2]  # Number of features
 
-    model = build_lstm_model((X.shape[1], 1))
+    # Split data into training and testing sets
+    split = int(0.8 * len(X))
+    X_train, X_test = X[:split], X[split:]
+    y_train, y_test = y[:split], y[split:]
 
-    # Save model during training
-    checkpoint_filepath = 'best_model.h5'
-    early_stopping = EarlyStopping(monitor='loss', patience=5)
-    model_checkpoint = ModelCheckpoint(filepath=checkpoint_filepath, save_best_only=True)
+    # Convert to tensors
+    X_train = torch.tensor(X_train, dtype=torch.float32).to(device)
+    y_train = torch.tensor(y_train, dtype=torch.float32).to(device)
+    X_test = torch.tensor(X_test, dtype=torch.float32).to(device)
+    y_test = torch.tensor(y_test, dtype=torch.float32).to(device)
 
-    model.fit(X, y, epochs=epochs, batch_size=batch_size, verbose=1,
-              callbacks=[early_stopping, model_checkpoint])
+    # Build the model
+    model = LSTMModel(input_size).to(device)
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    model.load_weights(checkpoint_filepath)
+    # Train the model
+    model.train()
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        outputs = model(X_train)
+        loss = criterion(outputs.view(-1), y_train)
+        loss.backward()
+        optimizer.step()
 
-    # Predict future prices (for the next 10 days as an example)
-    last_data = X[-1].reshape((1, X.shape[1], 1))  # Use the last data point for prediction
+        if (epoch+1) % 5 == 0:
+            print(f'Epoch [{epoch+1}/{epochs}], Training Loss: {loss.item():.4f}')
+
+    # Evaluate on test set
+    model.eval()
+    with torch.no_grad():
+        test_predictions = model(X_test)
+        test_loss = criterion(test_predictions.view(-1), y_test)
+        test_predictions_np = test_predictions.cpu().numpy()
+        y_test_np = y_test.cpu().numpy()
+
+        # Calculate additional metrics
+        mae = mean_absolute_error(y_test_np, test_predictions_np)
+        rmse = np.sqrt(mean_squared_error(y_test_np, test_predictions_np))
+        print(f'Test Loss (MSE): {test_loss.item():.4f}')
+        print(f'Test MAE: {mae:.4f}')
+        print(f'Test RMSE: {rmse:.4f}')
+
+    # Predict future prices (for the next 10 days)
+    # Ensure last_data is a PyTorch tensor
+    last_data = X[-1]
+    last_data = torch.tensor(last_data, dtype=torch.float32).to(device).unsqueeze(0)
     predicted_future = []
 
-    for _ in range(10):  # Predict for 10 days ahead
-        future_price = model.predict(last_data)
-        predicted_future.append(future_price[0][0])
-        # Append predicted value and shift for future prediction
-        last_data = np.append(last_data[:, 1:, :], future_price.reshape(1, 1, 1), axis=1)
+    with torch.no_grad():
+        for _ in range(10):
+            future_price = model(last_data)
+            predicted_future.append(future_price.cpu().item())
+            # Prepare next input
+            # Get the last feature vector
+            last_feature_vector = last_data[:, -1, :]  # Shape: [1, input_size]
+
+            # Replace the 'Close' price (assumed to be at index 0) with the predicted future price
+            future_feature_vector = last_feature_vector.clone()
+            future_feature_vector[:, 0] = future_price  # Replace 'Close' price
+
+            # Add a time dimension to make it [1, 1, input_size]
+            future_feature_vector = future_feature_vector.unsqueeze(1)  # Shape: [1, 1, input_size]
+
+            # Update last_data
+            last_data = torch.cat((last_data[:, 1:, :], future_feature_vector), dim=1)
 
     # Rescale back to original price scale
-    predicted_future = scaler.inverse_transform(np.array(predicted_future).reshape(-1, 1))
-    
-    return predicted_future
+    # Prepare data for inverse transformation
+    predicted_future_scaled = np.zeros((len(predicted_future), data.shape[1]))  # Number of features
+    predicted_future_scaled[:, 0] = predicted_future  # Assuming 'Close' is the first feature
+
+    predicted_future_prices = scaler.inverse_transform(predicted_future_scaled)[:, 0]
+
+    return predicted_future_prices, {'Test Loss': test_loss.item(), 'MAE': mae, 'RMSE': rmse}

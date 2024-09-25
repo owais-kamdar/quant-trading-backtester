@@ -1,3 +1,5 @@
+# metrics.py
+
 import numpy as np
 
 def calculate_sharpe_ratio(returns, risk_free_rate=0):
@@ -8,8 +10,8 @@ def calculate_sharpe_ratio(returns, risk_free_rate=0):
     :return: The Sharpe ratio.
     """
     excess_returns = np.array(returns) - risk_free_rate
-    return np.mean(excess_returns) / np.std(excess_returns)
-
+    std_dev = np.std(excess_returns)
+    return np.mean(excess_returns) / std_dev if std_dev != 0 else 0
 
 def calculate_max_drawdown(history):
     """
@@ -27,7 +29,6 @@ def calculate_max_drawdown(history):
             max_drawdown = drawdown
     return max_drawdown
 
-
 def calculate_cagr(initial_value, final_value, periods):
     """
     Calculates the CAGR of the portfolio.
@@ -39,4 +40,3 @@ def calculate_cagr(initial_value, final_value, periods):
     if initial_value <= 0 or periods <= 0:
         return 0  # Avoid division by zero or invalid CAGR
     return (final_value / initial_value) ** (1 / periods) - 1
-
